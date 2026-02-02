@@ -1,12 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
-function requiredEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing required env var: ${name}`);
-  return v;
-}
-
 function parseAllowList() {
   const raw = process.env.ALLOWED_EMAILS;
   if (!raw) return null;
@@ -24,8 +18,8 @@ function parseAllowList() {
 export const { auth, handlers, signIn, signOut } = NextAuth({
   providers: [
     Google({
-      clientId: requiredEnv("GOOGLE_CLIENT_ID"),
-      clientSecret: requiredEnv("GOOGLE_CLIENT_SECRET"),
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     }),
   ],
   callbacks: {
