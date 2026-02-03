@@ -8,13 +8,46 @@ const TOKEN = process.env.GATEWAY_TOKEN!;
 // We intentionally connect as a token-authenticated backend client **without device identity**.
 // That avoids device pairing requirements and keeps this app simple.
 
+function extractAssistantText(summary: any): string {
+  if (!summary) return "";
+  if (typeof summary === "string") return summary;
+
+  // Common shapes we’ve seen:
+  // - { type: 'summary_text', text: '...' }
+  // - { type: 'text', text: '...' }
+  // - { summary: [ { type:'summary_text', text:'...' } ] }
+  // - arrays of the above
+  if (Array.isArray(summary)) {
+    const parts = summary
+      .map((p) => {
+        if (!p) return "";
+        if (typeof p === "string") return p;
+        if (typeof p.text === "string") return p.text;
+        if (p.type === "summary_text" && typeof p.summary_text === "string") return p.summary_text;
+        return "";
+      })
+      .filter(Boolean);
+    return parts.join("\n").trim();
+  }
+
+  if (typeof summary.text === "string") return summary.text;
+  if (Array.isArray(summary.summary)) return extractAssistantText(summary.summary);
+
+  // Fallback: stringify
+  try {
+    return JSON.stringify(summary);
+  } catch {
+    return String(summary);
+  }
+}
+
 export async function sendChat(text: string): Promise<string> {
   const params = {
     sessionKey: 'agent:main:main',
     message: text,
   };
-  const result = await gatewayCall('agent', params);
-  return result;
+  const summary = await gatewayCall('agent', params);
+  return extractAssistantText(summary) || "(No text returned)";
 }
 
 export async function getHealth(): Promise<any> {

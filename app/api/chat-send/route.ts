@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid text' }, { status: 400 });
     }
     const reply = await sendChat(text);
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply: reply ?? "" });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
