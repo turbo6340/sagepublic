@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendChat } from '../../../lib/gateway-client';
+import { sendChat } from '../../lib/gateway-client';
 
 export async function POST(req: NextRequest) {
   try {

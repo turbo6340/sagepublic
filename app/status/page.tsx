@@ -14,46 +14,79 @@ interface StatusData {
   } | null;
 }
 
-export default function StatusPage() {
-  const [data, setData] = useState&lt;StatusData | null&gt;(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState&lt;string | null&gt;(null);
+interface PingData {
+  ok: boolean;
+  ts: string;
+}
 
-  useEffect(() =&gt; {
+export default function StatusPage() {
+  const [data, setData] = useState<StatusData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [pingData, setPingData] = useState<PingData | null>(null);
+  const [pingLoading, setPingLoading] = useState(true);
+  const [pingError, setPingError] = useState<string | null>(null);
+
+  useEffect(() => {
     fetch('/api/status')
-      .then((r) =&gt; r.json())
+      .then((r) => r.json())
       .then(setData)
-      .catch((e) =&gt; setError(e.message))
-      .finally(() =&gt; setLoading(false));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+    
+    fetch('/api/ping')
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(setPingData)
+      .catch((e) => setPingError(e.message))
+      .finally(() => setPingLoading(false));
   }, []);
 
-  if (loading) return &lt;div className="p-8 text-center"&gt;Loading status...&lt;/div&gt;;
-  if (error || !data) return &lt;div className="p-8 text-center text-red-500"&gt;Error: {error}&lt;/div&gt;;
+  if (loading) return <div className="p-8 text-center">Loading status...</div>;
+  if (error || !data) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
 
   return (
-    &lt;div className="grid gap-4 p-4 md:p-8"&gt;
-      &lt;div className="rounded-xl border bg-white p-6"&gt;
-        &lt;h1 className="mb-4 text-2xl font-bold"&gt;Gateway Status&lt;/h1&gt;
-        &lt;div className="space-y-2 text-sm"&gt;
-          &lt;div&gt;
-            Gateway Connected: {data.connected ? '✅ Yes' : '❌ No'}
-          &lt;/div&gt;
-          &lt;div&gt;
-            Last Heartbeat: {data.lastHeartbeat}
-          &lt;/div&gt;
-          {data.mainSession ? (
-            &lt;&gt;
-              &lt;h2 className="mt-4 font-semibold"&gt;Main Session (agent:main:main)&lt;/h2&gt;
-              &lt;div&gt;Age: {data.mainSession.ageMin} minutes&lt;/div&gt;
-              &lt;div&gt;Model: {data.mainSession.model}&lt;/div&gt;
-              &lt;div&gt;Total Tokens Used: {data.mainSession.totalTokens.toLocaleString() } ({data.mainSession.percentUsed.toFixed(1)}% used)&lt;/div&gt;
-              &lt;div&gt;Remaining: {data.mainSession.remainingTokens.toLocaleString() }&lt;/div&gt;
-            &lt;/&gt;
+    <div className="grid gap-4 p-4 md:p-8">
+      <div className="rounded-xl border bg-white p-6">
+        <h1 className="mb-4 text-2xl font-bold">Gateway Status</h1>
+        
+        {/* API Ping Indicator */}
+        <div className="mb-4 inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-sm">
+          <span>API:</span>
+          {pingLoading ? (
+            <span className="text-gray-500">checking...</span>
+          ) : pingError ? (
+            <span className="text-red-500">error</span>
+          ) : pingData?.ok ? (
+            <span className="text-green-600 font-medium">ok</span>
           ) : (
-            &lt;div&gt;No main session found&lt;/div&gt;
+            <span className="text-red-500">down</span>
           )}
-        &lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+        </div>
+        
+        <div className="space-y-2 text-sm">
+          <div>
+            Gateway Connected: {data.connected ? '✅ Yes' : '❌ No'}
+          </div>
+          <div>
+            Last Heartbeat: {data.lastHeartbeat}
+          </div>
+          {data.mainSession ? (
+            <>
+              <h2 className="mt-4 font-semibold">Main Session (agent:main:main)</h2>
+              <div>Age: {data.mainSession.ageMin} minutes</div>
+              <div>Model: {data.mainSession.model}</div>
+              <div>Total Tokens Used: {data.mainSession.totalTokens.toLocaleString() } ({data.mainSession.percentUsed.toFixed(1)}% used)</div>
+              <div>Remaining: {data.mainSession.remainingTokens.toLocaleString() }</div>
+            </>
+          ) : (
+            <div>No main session found</div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

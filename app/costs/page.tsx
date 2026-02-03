@@ -14,35 +14,35 @@ interface CostsData {
 }
 
 export default function CostsPage() {
-  const [data, setData] = useState&lt;CostsData | null&gt;(null);
+  const [data, setData] = useState<CostsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState&lt;string | null&gt;(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     fetch('/api/costs')
-      .then((r) =&gt; r.json())
+      .then((r) => r.json())
       .then(setData)
-      .catch((e) =&gt; setError(e.message))
-      .finally(() =&gt; setLoading(false));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return &lt;div className="p-8 text-center"&gt;Loading costs...&lt;/div&gt;;
-  if (error || !data) return &lt;div className="p-8 text-center text-red-500"&gt;Error: {error}&lt;/div&gt;;
+  if (loading) return <div className="p-8 text-center">Loading costs...</div>;
+  if (error || !data) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
 
   const { costs } = data;
 
   return (
-    &lt;div className="p-4 md:p-8"&gt;
-      &lt;div className="rounded-xl border bg-white p-6"&gt;
-        &lt;h1 className="mb-4 text-2xl font-bold"&gt;Token Costs Summary&lt;/h1&gt;
-        &lt;div className="space-y-2 text-sm"&gt;
-          &lt;div&gt;Model: {costs.model}&lt;/div&gt;
-          &lt;div&gt;Context: {costs.contextTokens?.toLocaleString() || 'N/A'} tokens&lt;/div&gt;
-          &lt;div&gt;Input: {costs.inputTokens.toLocaleString() }&lt;/div&gt;
-          &lt;div&gt;Output: {costs.outputTokens.toLocaleString() }&lt;/div&gt;
-          &lt;div&gt;Total Used: {costs.totalTokens.toLocaleString() } ({costs.percentUsed.toFixed(1)}% of context)&lt;/div&gt;
-        &lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+    <div className="p-4 md:p-8">
+      <div className="rounded-xl border bg-white p-6">
+        <h1 className="mb-4 text-2xl font-bold">Token Costs Summary</h1>
+        <div className="space-y-2 text-sm">
+          <div>Model: {costs.model}</div>
+          <div>Context: {costs.contextTokens?.toLocaleString() || 'N/A'} tokens</div>
+          <div>Input: {costs.inputTokens.toLocaleString() }</div>
+          <div>Output: {costs.outputTokens.toLocaleString() }</div>
+          <div>Total Used: {costs.totalTokens.toLocaleString() } ({costs.percentUsed.toFixed(1)}% of context)</div>
+        </div>
+      </div>
+    </div>
   );
 }

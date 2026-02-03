@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getHealth } from '../../../lib/gateway-client';
+import { getHealth } from '../../lib/gateway-client';
 
 export async function GET() {
   try {

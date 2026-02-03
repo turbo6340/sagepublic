@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 const WS_URL = process.env.GATEWAY_WS_URL!;
 const TOKEN = process.env.GATEWAY_TOKEN!;
 
-export async function sendChat(text: string): Promise&lt;string&gt; {
+export async function sendChat(text: string): Promise<string> {
   const params = {
     sessionKey: 'agent:main:main',
     message: text,
@@ -13,32 +13,32 @@ export async function sendChat(text: string): Promise&lt;string&gt; {
   return result;
 }
 
-export async function getHealth(): Promise&lt;any&gt; {
+export async function getHealth(): Promise<any> {
   return gatewayCall('health', {});
 }
 
-async function gatewayCall(method: string, params: Record&lt;string, any&gt;): Promise&lt;any&gt; {
-  return new Promise((resolve, reject) =&gt; {
+async function gatewayCall(method: string, params: Record<string, any>): Promise<any> {
+  return new Promise((resolve, reject) => {
     const ws = new WebSocket(WS_URL);
     const reqId = crypto.randomUUID();
     const isAgent = method === 'agent';
     let connectDone = false;
     const responses: any[] = [];
-    const timeout = setTimeout(() =&gt; {
+    const timeout = setTimeout(() => {
       ws.terminate();
       reject(new Error('Request timeout'));
     }, 120 * 1000);
-    const messageHandler = (data: WebSocket.RawData) =&gt; {
+    const messageHandler = (data: WebSocket.RawData) => {
       try {
         const msg = JSON.parse(data.toString()) as any;
-        if (msg.type === 'event' &amp;&amp; msg.event === 'connect.challenge') {
+        if (msg.type === 'event' && msg.event === 'connect.challenge') {
           handleChallenge(msg.payload, ws).catch(reject);
           return;
         }
-        if (msg.type === 'res' &amp;&amp; msg.id === reqId) {
+        if (msg.type === 'res' && msg.id === reqId) {
           responses.push(msg.payload);
           const status = msg.payload?.status;
-          if (status === 'ok' || (!isAgent &amp;&amp; msg.ok)) {
+          if (status === 'ok' || (!isAgent && msg.ok)) {
             ws.off('message', messageHandler as any);
             clearTimeout(timeout);
             ws.close();
@@ -60,7 +60,7 @@ async function gatewayCall(method: string, params: Record&lt;string, any&gt;): P
     };
     ws.on('message', messageHandler);
     ws.on('error', reject);
-    ws.on('close', () =&gt; {
+    ws.on('close', () => {
       if (!connectDone) {
         reject(new Error('Connection closed before request'));
       }
@@ -71,11 +71,11 @@ async function gatewayCall(method: string, params: Record&lt;string, any&gt;): P
           { name: 'Ed25519' },
           true,
           ['sign']
-        );
+        ) as CryptoKeyPair;
         const pubRaw = await crypto.subtle.exportKey('raw', keypair.publicKey) as ArrayBuffer;
         const pubB64 = Buffer.from(pubRaw).toString('base64');
         const nonceBytes = new TextEncoder().encode(challenge.nonce);
-        const sigRaw = await crypto.subtle.sign('Ed25519', nonceBytes, keypair.privateKey!) as ArrayBuffer;
+        const sigRaw = await crypto.subtle.sign('Ed25519', keypair.privateKey!, nonceBytes) as ArrayBuffer;
         const sigB64 = Buffer.from(sigRaw).toString('base64');
         const deviceId = `artificialexpert-${crypto.createHash('sha256').update(pubB64).digest('hex').slice(0,12)}`;
         const connectId = crypto.randomUUID();
@@ -112,10 +112,10 @@ async function gatewayCall(method: string, params: Record&lt;string, any&gt;): P
         };
         ws.send(JSON.stringify(connectMsg));
         // wait connect res
-        const connectResPromise = new Promise((r) =&gt; {
-          const h = (data: WebSocket.RawData) =&gt; {
+        const connectResPromise = new Promise((r) => {
+          const h = (data: WebSocket.RawData) => {
             const msg = JSON.parse(data.toString()) as any;
-            if (msg.type === 'res' &amp;&amp; msg.id === connectId) {
+            if (msg.type === 'res' && msg.id === connectId) {
               ws.off('message', h as any);
               r(msg);
             }
@@ -144,7 +144,7 @@ async function gatewayCall(method: string, params: Record&lt;string, any&gt;): P
       }
     }
     // timeout for challenge
-    setTimeout(() =&gt; {
+    setTimeout(() => {
       if (!connectDone) {
         reject(new Error('No connect challenge received'));
       }
