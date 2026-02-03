@@ -74,9 +74,9 @@ function extractAgentResultText(agentPayload: any): string {
   return extractAssistantText(p);
 }
 
-export async function sendChat(text: string): Promise<string> {
+export async function sendChat(text: string, sessionKey: string): Promise<string> {
   const params = {
-    sessionKey: 'agent:main:main',
+    sessionKey,
     message: text,
   };
   const payload = await gatewayCall('agent', params);

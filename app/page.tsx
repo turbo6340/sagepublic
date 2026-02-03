@@ -24,10 +24,22 @@ export default function ChatPage() {
     setMessages((m) => [...m, loadingMsg]);
 
     try {
+      const sessionKey = (() => {
+        try {
+          const existing = localStorage.getItem("ae_sessionKey");
+          if (existing) return existing;
+          const created = `agent:main:web:${crypto.randomUUID()}`;
+          localStorage.setItem("ae_sessionKey", created);
+          return created;
+        } catch {
+          return "agent:main:web";
+        }
+      })();
+
       const res = await fetch("/api/chat-send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmed }),
+        body: JSON.stringify({ text: trimmed, sessionKey }),
       });
       const { reply } = await res.json();
       setMessages((m) => m.slice(0, -1).concat([{ role: "assistant" as const, text: reply }]));
