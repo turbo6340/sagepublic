@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 type Msg = { role: "user" | "assistant"; text: string };
 
 export default function ChatPage() {
-  const gatewayUiUrl = useMemo(() => process.env.NEXT_PUBLIC_GATEWAY_UI_URL ?? "", []);
 
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([
@@ -38,18 +37,14 @@ export default function ChatPage() {
       <div className="rounded-xl border bg-white p-4">
         <div className="mb-3 flex items-center justify-between gap-3 text-sm text-gray-600">
           <div>Chat (MVP)</div>
-          {gatewayUiUrl ? (
-            <a
-              href={gatewayUiUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
-            >
-              Open Gateway Cockpit
-            </a>
-          ) : (
-            <div className="text-xs text-gray-500">Set NEXT_PUBLIC_GATEWAY_UI_URL to enable Cockpit link</div>
-          )}
+          <a
+            href="/cockpit"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
+          >
+            Open Gateway Cockpit
+          </a>
         </div>
 
         <div className="flex flex-col gap-3">
