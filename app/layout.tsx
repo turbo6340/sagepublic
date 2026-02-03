@@ -38,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <NavItem href="/status" label="Status" />
                   <NavItem href="/costs" label="Costs" />
                   <NavItem href="/settings" label="Settings" />
+                  <NavItem href="/research" label="Research" />
                 </nav>
               </div>
             </div>
