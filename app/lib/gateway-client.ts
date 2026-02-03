@@ -50,13 +50,37 @@ function extractAssistantText(payload: any): string {
   }
 }
 
+function extractAgentResultText(agentPayload: any): string {
+  // The gateway `agent` method returns a run envelope; useful text is usually in result.payloads[].text
+  const p = agentPayload;
+  if (!p) return "";
+
+  // Common direct shapes
+  if (typeof p === "string") return p;
+
+  const result = p.result ?? p;
+  const payloads = result?.payloads;
+  if (Array.isArray(payloads) && payloads.length) {
+    const texts = payloads
+      .map((x: any) => (typeof x?.text === "string" ? x.text : ""))
+      .filter(Boolean);
+    if (texts.length) return texts.join("\n\n").trim();
+  }
+
+  // Fallbacks
+  if (typeof p.summary === "string") return p.summary;
+  if (typeof result?.summary === "string") return result.summary;
+
+  return extractAssistantText(p);
+}
+
 export async function sendChat(text: string): Promise<string> {
   const params = {
     sessionKey: 'agent:main:main',
     message: text,
   };
   const payload = await gatewayCall('agent', params);
-  return extractAssistantText(payload) || "(No text returned)";
+  return extractAgentResultText(payload) || "(No text returned)";
 }
 
 export async function getHealth(): Promise<any> {
