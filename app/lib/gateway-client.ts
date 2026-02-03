@@ -83,10 +83,10 @@ async function gatewayCall(method: string, params: Record<string, any>): Promise
           minProtocol: 3,
           maxProtocol: 3,
           client: {
-            id: 'artificialexpert-app',
+            id: 'gateway-client',
             version: '1.0.0',
             platform: 'nextjs-fly',
-            mode: 'operator'
+            mode: 'backend'
           },
           role: 'operator',
           scopes: ['operator.read', 'operator.write'],
