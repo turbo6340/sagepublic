@@ -4,6 +4,73 @@ import * as crypto from 'crypto';
 const WS_URL = process.env.GATEWAY_WS_URL!;
 const TOKEN = process.env.GATEWAY_TOKEN!;
 
+// In-memory keypair cache (stable per process lifetime)
+let cachedKeypair: {
+  privateKey: crypto.KeyObject;
+  publicKey: crypto.KeyObject;
+  publicKeyRaw: Buffer;
+  deviceId: string;
+} | null = null;
+
+// Ed25519 SPKI prefix for reconstructing public key
+const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+
+function base64UrlEncode(buf: Buffer): string {
+  return buf.toString('base64')
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/=+$/g, '');
+}
+
+async function getOrCreateKeypair() {
+  if (cachedKeypair) return cachedKeypair;
+  
+  // Generate Ed25519 keypair
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+  
+  // Export raw public key (32 bytes)
+  const spki = publicKey.export({ type: 'spki', format: 'der' }) as Buffer;
+  const publicKeyRaw = spki.subarray(ED25519_SPKI_PREFIX.length);
+  
+  // Device ID = sha256(rawPublicKeyBytes).hex (full 64 chars)
+  const deviceId = crypto.createHash('sha256').update(publicKeyRaw).digest('hex');
+  
+  cachedKeypair = { privateKey, publicKey, publicKeyRaw, deviceId };
+  return cachedKeypair;
+}
+
+function buildDeviceAuthPayload(params: {
+  deviceId: string;
+  clientId: string;
+  clientMode: string;
+  role: string;
+  scopes: string[];
+  signedAtMs: number;
+  token: string | null;
+  nonce?: string;
+}): string {
+  const version = params.nonce ? 'v2' : 'v1';
+  const scopesStr = params.scopes.join(',');
+  const tokenStr = params.token ?? '';
+  
+  const base = [
+    version,
+    params.deviceId,
+    params.clientId,
+    params.clientMode,
+    params.role,
+    scopesStr,
+    String(params.signedAtMs),
+    tokenStr,
+  ];
+  
+  if (version === 'v2') {
+    base.push(params.nonce ?? '');
+  }
+  
+  return base.join('|');
+}
+
 export async function sendChat(text: string): Promise<string> {
   const params = {
     sessionKey: 'agent:main:main',
@@ -67,17 +134,28 @@ async function gatewayCall(method: string, params: Record<string, any>): Promise
     });
     async function handleChallenge(challenge: any, ws: WebSocket) {
       try {
-        const keypair = await crypto.subtle.generateKey(
-          { name: 'Ed25519' },
-          true,
-          ['sign']
-        ) as CryptoKeyPair;
-        const pubRaw = await crypto.subtle.exportKey('raw', keypair.publicKey) as ArrayBuffer;
-        const pubB64 = Buffer.from(pubRaw).toString('base64');
-        const nonceBytes = new TextEncoder().encode(challenge.nonce);
-        const sigRaw = await crypto.subtle.sign('Ed25519', keypair.privateKey!, nonceBytes) as ArrayBuffer;
-        const sigB64 = Buffer.from(sigRaw).toString('base64');
-        const deviceId = `artificialexpert-${crypto.createHash('sha256').update(pubB64).digest('hex').slice(0,12)}`;
+        const keys = await getOrCreateKeypair();
+        const signedAtMs = Date.now();
+        
+        // Build payload per gateway spec
+        const payload = buildDeviceAuthPayload({
+          deviceId: keys.deviceId,
+          clientId: 'gateway-client',
+          clientMode: 'backend',
+          role: 'operator',
+          scopes: ['operator.read', 'operator.write'],
+          signedAtMs,
+          token: TOKEN,
+          nonce: challenge.nonce,
+        });
+        
+        // Sign the payload (not raw nonce)
+        const sigRaw = crypto.sign(null, Buffer.from(payload, 'utf8'), keys.privateKey);
+        const sigB64Url = base64UrlEncode(sigRaw);
+        
+        // Public key as base64url of raw bytes
+        const pubB64Url = base64UrlEncode(keys.publicKeyRaw);
+        
         const connectId = crypto.randomUUID();
         const connectParams = {
           minProtocol: 3,
@@ -97,10 +175,10 @@ async function gatewayCall(method: string, params: Record<string, any>): Promise
           locale: 'en-US',
           userAgent: 'ArtificialExpertApp/1.0.0',
           device: {
-            id: deviceId,
-            publicKey: pubB64,
-            signature: sigB64,
-            signedAt: Date.now(),
+            id: keys.deviceId,
+            publicKey: pubB64Url,
+            signature: sigB64Url,
+            signedAt: signedAtMs,
             nonce: challenge.nonce
           }
         };
