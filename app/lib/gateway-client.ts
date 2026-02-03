@@ -8,36 +8,45 @@ const TOKEN = process.env.GATEWAY_TOKEN!;
 // We intentionally connect as a token-authenticated backend client **without device identity**.
 // That avoids device pairing requirements and keeps this app simple.
 
-function extractAssistantText(summary: any): string {
-  if (!summary) return "";
-  if (typeof summary === "string") return summary;
+function extractAssistantText(payload: any): string {
+  if (!payload) return "";
 
-  // Common shapes we’ve seen:
-  // - { type: 'summary_text', text: '...' }
-  // - { type: 'text', text: '...' }
-  // - { summary: [ { type:'summary_text', text:'...' } ] }
-  // - arrays of the above
+  // If gateway already returns a plain string.
+  if (typeof payload === "string") return payload.trim();
+
+  // Common places the text might live.
+  if (typeof payload.text === "string") return payload.text.trim();
+  if (typeof payload.message === "string") return payload.message.trim();
+  if (typeof payload.outputText === "string") return payload.outputText.trim();
+
+  // Many gateway replies include an array in `summary`.
+  const summary = payload.summary ?? payload.output ?? payload.content;
+
   if (Array.isArray(summary)) {
     const parts = summary
       .map((p) => {
         if (!p) return "";
         if (typeof p === "string") return p;
         if (typeof p.text === "string") return p.text;
-        if (p.type === "summary_text" && typeof p.summary_text === "string") return p.summary_text;
+        if (typeof p.summary_text === "string") return p.summary_text;
         return "";
       })
       .filter(Boolean);
-    return parts.join("\n").trim();
+
+    const joined = parts.join("\n").trim();
+    if (joined) return joined;
   }
 
-  if (typeof summary.text === "string") return summary.text;
-  if (Array.isArray(summary.summary)) return extractAssistantText(summary.summary);
+  // Nested fallbacks
+  if (summary && typeof summary === "object" && !Array.isArray(summary)) {
+    const nested = extractAssistantText(summary);
+    if (nested) return nested;
+  }
 
-  // Fallback: stringify
   try {
-    return JSON.stringify(summary);
+    return JSON.stringify(payload);
   } catch {
-    return String(summary);
+    return String(payload);
   }
 }
 
@@ -46,8 +55,8 @@ export async function sendChat(text: string): Promise<string> {
     sessionKey: 'agent:main:main',
     message: text,
   };
-  const summary = await gatewayCall('agent', params);
-  return extractAssistantText(summary) || "(No text returned)";
+  const payload = await gatewayCall('agent', params);
+  return extractAssistantText(payload) || "(No text returned)";
 }
 
 export async function getHealth(): Promise<any> {
@@ -145,10 +154,25 @@ async function gatewayCall(method: string, params: Record<string, any>): Promise
             return;
           }
 
-          // For `agent`, the useful user-facing text is in payload.summary
-          const payload = isAgent ? msg.payload?.summary : msg.payload;
+          if (isAgent) {
+            const status = msg.payload?.status;
+            if (status === 'accepted') {
+              // keep waiting for the final ok payload
+              return;
+            }
+            if (status === 'error') {
+              cleanup();
+              reject(new Error(msg.payload?.summary || msg.error?.message || 'Agent error'));
+              return;
+            }
+            // expected final payload has `status: ok` and `summary`
+            cleanup();
+            resolve(msg.payload);
+            return;
+          }
+
           cleanup();
-          resolve(payload);
+          resolve(msg.payload);
         }
       } catch (e) {
         cleanup();
