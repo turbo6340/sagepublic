@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type Msg = { role: "user" | "assistant"; text: string };
 
 export default function ChatPage() {
+  const gatewayUiUrl = useMemo(() => process.env.NEXT_PUBLIC_GATEWAY_UI_URL ?? "", []);
+
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([
     {
       role: "assistant",
-      text: "This is the MVP chat UI. Next step is wiring it to Clawdbot gateway + notifications.",
+      text: "Chat UI is live. For now, use the Gateway Cockpit for real chat/status/costs (until we wire native API routes).",
     },
   ]);
 
@@ -25,18 +27,31 @@ export default function ChatPage() {
         ...m,
         {
           role: "assistant",
-          text: "Received. (Not wired to gateway yet.)",
+          text: "Received. (Not wired to gateway yet — open Gateway Cockpit for live chat.)",
         },
       ]);
-    }, 300);
+    }, 250);
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-xl border bg-white p-4">
-        <div className="mb-3 text-sm text-gray-600">
-          Chat (text now; image upload + voice coming next)
+        <div className="mb-3 flex items-center justify-between gap-3 text-sm text-gray-600">
+          <div>Chat (MVP)</div>
+          {gatewayUiUrl ? (
+            <a
+              href={gatewayUiUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"
+            >
+              Open Gateway Cockpit
+            </a>
+          ) : (
+            <div className="text-xs text-gray-500">Set NEXT_PUBLIC_GATEWAY_UI_URL to enable Cockpit link</div>
+          )}
         </div>
+
         <div className="flex flex-col gap-3">
           {messages.map((m, i) => (
             <div
@@ -64,10 +79,7 @@ export default function ChatPage() {
             className="flex-1 rounded-lg border px-3 py-2"
             placeholder="Type a message…"
           />
-          <button
-            onClick={send}
-            className="rounded-lg bg-black px-4 py-2 text-white"
-          >
+          <button onClick={send} className="rounded-lg bg-black px-4 py-2 text-white">
             Send
           </button>
         </div>
